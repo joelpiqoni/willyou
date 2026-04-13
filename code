@@ -1,0 +1,302 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+export default function PromInvitation() {
+  const [showButtons, setShowButtons] = useState(false);
+  const [accepted, setAccepted] = useState(false);
+  const [noClicks, setNoClicks] = useState(0);
+  const [noPosition, setNoPosition] = useState({ x: 0, y: 0 });
+  const [wrongMsg, setWrongMsg] = useState(false);
+  const [tilt, setTilt] = useState(0);
+
+  const playNoSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc1.type = "sawtooth";
+      osc2.type = "square";
+      osc1.frequency.setValueAtTime(220, ctx.currentTime);
+      osc1.frequency.exponentialRampToValueAtTime(140, ctx.currentTime + 0.18);
+      osc2.frequency.setValueAtTime(180, ctx.currentTime);
+      osc2.frequency.exponentialRampToValueAtTime(90, ctx.currentTime + 0.18);
+
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
+
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start();
+      osc2.start();
+      osc1.stop(ctx.currentTime + 0.22);
+      osc2.stop(ctx.currentTime + 0.22);
+    } catch (e) {}
+  };
+
+  const playYesSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const gain = ctx.createGain();
+      gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.9);
+
+      const notes = [523.25, 659.25, 783.99, 1046.5];
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
+        osc.connect(gain);
+        osc.start(ctx.currentTime + i * 0.08);
+        osc.stop(ctx.currentTime + 0.35 + i * 0.08);
+      });
+    } catch (e) {}
+  };
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowButtons(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const floatingHearts = useMemo(
+    () =>
+      Array.from({ length: 18 }, (_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        size: 14 + Math.random() * 24,
+        duration: 6 + Math.random() * 8,
+        delay: Math.random() * 5,
+      })),
+    []
+  );
+
+  const confettiHearts = useMemo(
+    () =>
+      Array.from({ length: 80 }, (_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        delay: Math.random() * 1.5,
+        duration: 3 + Math.random() * 3,
+        size: 10 + Math.random() * 18,
+        rotate: Math.random() * 360,
+        drift: -80 + Math.random() * 160,
+        colorClass: Math.random() > 0.5 ? "text-pink-400" : "text-red-400",
+      })),
+    []
+  );
+
+  const moveNoButton = () => {
+    playNoSound();
+
+    setWrongMsg(true);
+    setTimeout(() => setWrongMsg(false), 1200);
+
+    const randomTilt = Math.random() * 6 - 3;
+    setTilt(randomTilt);
+    setTimeout(() => setTilt(0), 300);
+
+    if (!containerRef.current) return;
+
+    const nextClicks = noClicks + 1;
+    setNoClicks(nextClicks);
+
+    if (nextClicks >= 10) return;
+
+    const container = containerRef.current.getBoundingClientRect();
+    const maxX = Math.max(container.width - 180, 40);
+    const maxY = Math.max(container.height - 120, 40);
+
+    const randomX = Math.random() * maxX - container.width / 4;
+    const randomY = Math.random() * maxY - container.height / 4;
+
+    setNoPosition({ x: randomX, y: randomY });
+  };
+
+  return (
+    <motion.div
+      ref={containerRef}
+      animate={{ rotate: tilt }}
+      transition={{ type: "spring", stiffness: 200, damping: 10 }}
+      className="relative min-h-screen overflow-hidden bg-gradient-to-b from-pink-100 via-rose-50 to-pink-200 flex items-center justify-center p-6"
+    >
+      {!accepted && (
+        <>
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {floatingHearts.map((heart) => (
+              <motion.div
+                key={heart.id}
+                className="absolute text-pink-300 opacity-70"
+                style={{ left: `${heart.left}%`, fontSize: `${heart.size}px` }}
+                initial={{ y: "110vh", x: 0, opacity: 0 }}
+                animate={{
+                  y: "-20vh",
+                  x: [0, 20, -15, 10, 0],
+                  opacity: [0, 0.8, 0.8, 0.6, 0],
+                }}
+                transition={{
+                  duration: heart.duration,
+                  delay: heart.delay,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              >
+                ❤
+              </motion.div>
+            ))}
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 30 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 1.2 }}
+            className="relative z-10 w-full max-w-4xl rounded-[2rem] border border-pink-200/80 bg-white/70 backdrop-blur-xl shadow-2xl px-8 py-14 text-center"
+          >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1.5 }}
+              className="mb-5 text-4xl md:text-6xl"
+            >
+              💗
+            </motion.div>
+
+            <h1
+              className="text-5xl md:text-7xl leading-tight text-pink-500"
+              style={{
+                fontFamily:
+                  '"Brush Script MT", "Lucida Handwriting", "Segoe Script", cursive',
+                textShadow: "0 4px 14px rgba(244, 114, 182, 0.25)",
+              }}
+            >
+              Will you be my date to prom?
+            </h1>
+
+            <p className="mt-6 text-pink-400 text-lg md:text-xl font-medium tracking-wide">
+              With lots of love, Joel ✨
+            </p>
+
+            <AnimatePresence>
+              {showButtons && (
+                <motion.div
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.8 }}
+                  className="relative mt-12 flex flex-col sm:flex-row items-center justify-center gap-6 min-h-[180px]"
+                >
+                  <motion.button
+                    whileHover={{ scale: 1.06 }}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => {
+                      playYesSound();
+                      setAccepted(true);
+                    }}
+                    className="rounded-full px-12 py-4 text-2xl font-bold bg-pink-400 text-white shadow-xl shadow-pink-300/40 border-4 border-pink-200"
+                  >
+                    Yes 💞
+                  </motion.button>
+
+                  {noClicks < 10 && (
+                    <motion.button
+                      key={noClicks}
+                      animate={{ x: noPosition.x, y: noPosition.y }}
+                      transition={{ type: "spring", stiffness: 260, damping: 14 }}
+                      onMouseEnter={moveNoButton}
+                      onClick={moveNoButton}
+                      className="rounded-full px-12 py-4 text-2xl font-bold bg-white text-pink-500 shadow-xl border-4 border-pink-300"
+                    >
+                      No 💔
+                    </motion.button>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </>
+      )}
+
+      <AnimatePresence>
+        {accepted && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+            className="absolute inset-0 bg-gradient-to-b from-rose-100 via-pink-50 to-rose-200 flex items-center justify-center overflow-hidden"
+          >
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              {confettiHearts.map((piece) => (
+                <motion.div
+                  key={piece.id}
+                  className={`absolute top-[-10%] ${piece.colorClass}`}
+                  style={{ left: `${piece.left}%`, fontSize: `${piece.size}px` }}
+                  initial={{ y: -50, x: 0, rotate: 0, opacity: 0 }}
+                  animate={{
+                    y: "115vh",
+                    x: piece.drift,
+                    rotate: piece.rotate,
+                    opacity: [0, 1, 1, 0.7, 0],
+                  }}
+                  transition={{
+                    duration: piece.duration,
+                    delay: piece.delay,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }}
+                >
+                  ❤
+                </motion.div>
+              ))}
+            </div>
+
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              transition={{ duration: 0.9 }}
+              className="relative z-10 text-center px-6"
+            >
+              <div className="text-5xl md:text-7xl mb-6">💖💌💖</div>
+              <h2
+                className="text-6xl md:text-8xl text-pink-500"
+                style={{
+                  fontFamily:
+                    '"Brush Script MT", "Lucida Handwriting", "Segoe Script", cursive',
+                  textShadow: "0 6px 18px rgba(244, 114, 182, 0.3)",
+                }}
+              >
+                THANK YOU
+              </h2>
+              <p className="mt-6 text-xl md:text-2xl text-rose-400 font-semibold tracking-wide">
+                You just made this the sweetest prom ever ✨
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {wrongMsg && !accepted && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-white/80 backdrop-blur-sm px-6 py-3 text-pink-600 text-xl font-bold shadow-lg border border-pink-200"
+          >
+            Wrong Answer ❌
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
